@@ -1,0 +1,56 @@
+version: '3'
+
+services:
+  webserver:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webserver.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.webserver.entrypoints=web"
+      - "traefik.http.services.webserver.loadbalancer.server.port=8080"
+    environment:
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASSWORD=your_password
+      - DB_NAME=your_db_name
+    depends_on:
+      - db
+    
+
+  db:
+    image: postgres:16.4-alpine3.20
+    restart: always
+    environment:
+
+      - "traefik.enable=true"
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=your_password
+      - POSTGRES_DB=your_db_name
+    labels:
+      - "traefik.enable=true"
+      - "traefik.tcp.routers.database.rule=HostSNI(`*`)"
+      - "traefik.tcp.routers.database.entrypoints=tcp"
+      - "traefik.tcp.services.database.loadbalancer.server.port=5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  traefik:
+    image: traefik:v3.1
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.tcp.address=:5432"
+    ports:
+      - "80:80"
+      - "8080:8080"
+      - "5432:5432"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  postgres_data:
