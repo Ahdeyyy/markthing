@@ -69,7 +69,7 @@ func ValidateSessionToken(db *sql.DB, token string) (*Session, *User) {
 	session := Session{}
 	user := User{}
 
-	row := db.QueryRow(`select sessions.id, sessions.user_id, sessions.expires_at, users.id as user_id
+	row := db.QueryRow(`select sessions.id, sessions.user_id, sessions.expires_at, users.username, users.id as user_id
 		from sessions inner join users on users.id = sessions.user_id where sessions.id = $1`, sessionId)
 
 	err := row.Err()
@@ -77,7 +77,7 @@ func ValidateSessionToken(db *sql.DB, token string) (*Session, *User) {
 		log.Printf("error validating the session: %s\n", err)
 		return nil, nil
 	}
-	row.Scan(&session.Id, &session.UserID, &session.ExpiresAt, &user.Id)
+	row.Scan(&session.Id, &session.UserID, &session.ExpiresAt, &user.Username, &user.Id)
 
 	if time.Now().After(session.ExpiresAt) {
 		_, err = db.Exec("delete from sessions where id = $1", session.Id)
