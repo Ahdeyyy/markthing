@@ -1,39 +1,39 @@
-package main
+package store
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5"
 )
 
-func newDb(host, user, password, name string) (*sql.DB, error) {
+func NewConn(host, user, password, name string) (*pgx.Conn, error) {
 
-	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, user, password, name)
+	connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable",
+		user, password, host, name)
 
-	db, err := sql.Open("postgres", connStr)
+	conn, err := pgx.Connect(context.Background(), connStr)
 	if err != nil {
 		return nil, err
 	}
 	// NOTE: remove this
 	// dropTables(db)
-	createTables(db)
+	createTables(conn)
 
-	return db, nil
+	return conn, nil
 
 }
 
-func dropTables(db *sql.DB) {
+func dropTables(conn *pgx.Conn) {
 	log.Println("dropping tables...")
 	stmt := `drop table users cascade;
 		drop table workspaces cascade;
 		drop table sessions cascade;`
-	db.Exec(stmt)
+	conn.Exec(context.Background(), stmt)
 
 }
-func createTables(db *sql.DB) {
+func createTables(conn *pgx.Conn) {
 	enums := `
 	create type visibility as enum ('public', 'private');
 	create type role as enum ('admin','user', 'guest');
@@ -60,19 +60,19 @@ func createTables(db *sql.DB) {
 		expires_at timestamp
 	)`
 
-	_, err := db.Exec(enums)
+	_, err := conn.Exec(context.Background(), enums)
 	if err != nil {
 		log.Printf("error creating enum types: %s", err)
 	}
-	_, err = db.Exec(userTable)
+	_, err = conn.Exec(context.Background(), userTable)
 	if err != nil {
 		log.Printf("error creating users table: %s", err)
 	}
-	_, err = db.Exec(sessionTable)
+	_, err = conn.Exec(context.Background(), sessionTable)
 	if err != nil {
 		log.Printf("error creating sessions table: %s", err)
 	}
-	_, err = db.Exec(workspaceTable)
+	_, err = conn.Exec(context.Background(), workspaceTable)
 	if err != nil {
 		log.Printf("error creating workspaces table: %s", err)
 	}
